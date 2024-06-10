@@ -18,14 +18,14 @@ export class MailService {
     this.logger.log(
       `Connecting to Email-Server: '${this.mailConfig.transport.host}:${this.mailConfig.transport.port}'`,
     );
-    // this.mailer = createTransport(this.mailConfig.transport);
+    this.mailer = createTransport(this.mailConfig.transport);
 
-    /*if (await this.verifyConnection(this.mailer)) {
+    if (await this.verifyConnection(this.mailer)) {
       this.logger.log('Connecting to Email-Server successful!');
     } else {
       this.logger.error('Connecting to Email-Server failed! Shutting down...');
        process.exit(5);
-    }*/
+    }
   }
 
   async sendEmail(

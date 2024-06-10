@@ -48,9 +48,19 @@ export class AbsenceClientService {
     private readonly coreConfig: CoreConfigService,
     private readonly mail: MailService,
   ) {
-    const folder = resolve(
+    const yearFolder = resolve(
       this.coreConfig.reportStorageLocation,
       new Date().getUTCFullYear().toString(),
+    );
+
+    if (!existsSync(yearFolder)) {
+      mkdirSync(yearFolder);
+    }
+
+    const folder = resolve(
+      this.coreConfig.reportStorageLocation,
+      yearFolder,
+      new Date().getUTCMonth().toString(),
     );
 
     if (!existsSync(folder)) {
@@ -85,6 +95,8 @@ export class AbsenceClientService {
     const lastLastMonth = new Date();
     lastLastMonth.setDate(1);
     lastLastMonth.setHours(-1);
+
+    this.logger.log(`Creating monthly report from ${firstLastMonth} to ${lastLastMonth}`);
 
     this.createReport(
       firstLastMonth,
@@ -162,7 +174,7 @@ export class AbsenceClientService {
     sheduledTimeMode: 'month' | 'week' | 'day' | 'none',
   ) {
     this.logger.debug(
-      `Creating department report for department ${department.name}`,
+      `Creating department report for department ${department.name} from ${start} - ${end}`,
     );
     const departmentReport = new Workbook();
 
@@ -185,16 +197,17 @@ export class AbsenceClientService {
     const path = resolve(
       this.coreConfig.reportStorageLocation,
       end.getUTCFullYear().toString(),
+      (end.getUTCMonth()  + 1).toString(),
       fileName.replace('{{subject}}', `TEAM-${department.name}`),
     );
 
-    /*this.mail.sendEmail(
+    this.mail.sendEmail(
       title,
       'Anbei ist die Arbeitszeitsübersicht für das Team ' + department.name,
       path,
       fileName.replace('{{subject}}', `TEAM-${department.name}`),
       TEAMLEADS[department.name],
-    );*/
+    );
 
     await departmentReport.write(path);
   }
@@ -208,7 +221,7 @@ export class AbsenceClientService {
     fileName: string,
     sheduledTimeMode: 'month' | 'week' | 'day' | 'none',
   ) {
-    this.logger.debug(`Creating user report for ${user.employeeId}`);
+    this.logger.debug(`Creating user report for ${user.employeeId} from ${start} - ${end}`);
     const userReport = new Workbook();
 
     await this.createUserReportSheet(
@@ -224,6 +237,7 @@ export class AbsenceClientService {
     const path = resolve(
       this.coreConfig.reportStorageLocation,
       end.getUTCFullYear().toString(),
+      (end.getUTCMonth()  + 1).toString(),
       fileName.replace('{{subject}}', user.employeeId),
     );
 
@@ -246,7 +260,7 @@ export class AbsenceClientService {
     fileName: string,
     sheduledTimeMode: 'month' | 'week' | 'day' | 'none',
   ) {
-    this.logger.debug(`Createing summary report`);
+    this.logger.debug(`Createing summary report from ${start} - ${end}`);
     const summaryReport = new Workbook();
     for (let i = 0; i < users.length; i++) {
       await this.createUserReportSheet(
@@ -263,16 +277,17 @@ export class AbsenceClientService {
     const path = resolve(
       this.coreConfig.reportStorageLocation,
       end.getUTCFullYear().toString(),
+      (end.getUTCMonth()  + 1).toString(),
       fileName.replace('{{subject}}', 'GESAMT'),
     );
 
-    /*this.mail.sendEmail(
+    this.mail.sendEmail(
       title,
       'Anbei ist die Arbeitszeitsübersicht für alle CWI Mitarbeiter',
       path,
       fileName.replace('{{subject}}', 'GESAMT'),
       TEAMLEADS.GESAMT,
-    );*/
+    );
 
     await summaryReport.write(path);
   }

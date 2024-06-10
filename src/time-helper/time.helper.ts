@@ -1,6 +1,6 @@
 import { TimeDetails, TimeEntry } from 'src/absence-client/timeentry';
 
-const HOLIDAY_LIST = [new Date('2023-01-06')];
+const HOLIDAY_LIST = [new Date('2023-01-06'), new Date('2024-01-06'), new Date('2024-04-01'), new Date('2024-05-01'),new Date('2024-05-009'), new Date('2024-05-20'), new Date('2024-05-30'), new Date('2024-08-15'), new Date('2024-10-26'), new Date('2024-11-01'), new Date('2024-12-08'), new Date('2024-12-25'), new Date('2024-12-26')];
 
 /**
  *
@@ -67,18 +67,6 @@ export const getTimeDetailsFromTimeEntry = (
           new Date(timeEntry.end).setHours(6, 0, 0, 0),
         ),
       );
-
-      if (endsHoliday) {
-        noHolidayNightEndTime = new Date(
-          new Date(timeEntry.end).setHours(0, 0, 0, 0),
-        );
-      }
-
-      if (startsHoliday) {
-        noHolidayNightStartTime = new Date(
-          new Date(timeEntry.start).setHours(0, 0, 0, 0),
-        );
-      }
     }
 
     nightMinutes = calculateTimeSpan({
@@ -86,10 +74,7 @@ export const getTimeDetailsFromTimeEntry = (
       end: nightEndTime,
     });
 
-    notHolidayNightMinutes = calculateTimeSpan({
-      start: noHolidayNightStartTime,
-      end: noHolidayNightEndTime,
-    });
+    notHolidayNightMinutes = Math.max(0, nightMinutes - holidayMinutes);
   }
 
   return {

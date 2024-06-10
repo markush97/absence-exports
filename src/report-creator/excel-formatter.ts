@@ -21,16 +21,19 @@ export const createUserReport = (
     `${user.employeeId} (${user.firstName} ${user.lastName})`,
   );
 
+  // Get the Raw total minutes
   const totalMinutes = timeEntries.reduce<number>((total, timeEntry) => {
     const timeDetails = getTimeDetailsFromTimeEntry(timeEntry);
     return total + timeDetails.totalMinutes;
   }, 0);
 
+  // Get the holiday Minutes
   const holidayMinutes = timeEntries.reduce<number>((total, timeEntry) => {
     const timeDetails = getTimeDetailsFromTimeEntry(timeEntry);
     return total + timeDetails.holidayMinutes;
   }, 0);
 
+  // Get Minutes at night not on a holiday
   const notHolidayNightMinutes = timeEntries.reduce<number>(
     (total, timeEntry) => {
       const timeDetails = getTimeDetailsFromTimeEntry(timeEntry);
@@ -39,32 +42,36 @@ export const createUserReport = (
     0,
   );
 
+  const notHolidayNightMinutesAdjusted = notHolidayNightMinutes * 1.5;
+  const holidayMinutesAdjusted = holidayMinutes * 2;
+
+  // Calculate sheduled Minutes to work
   const scheduledMinutes = Math.floor(sheduledTime / (1000 * 60));
 
-  const includedOvertime = Number.parseInt(user.secondaryEmployeeId ?? '0');
-  let overTimeDeduction = includedOvertime * 60;
-  let totalBillableTime = 0;
-
-  if (overTimeDeduction > holidayMinutes) {
-    overTimeDeduction -= holidayMinutes;
-  } else {
-    (totalBillableTime += holidayMinutes - overTimeDeduction) * 2;
-  }
-
-  if (overTimeDeduction > notHolidayNightMinutes) {
-    overTimeDeduction -= notHolidayNightMinutes;
-  } else {
-    totalBillableTime += (notHolidayNightMinutes - overTimeDeduction) * 2;
-  }
+  // Fetch included overtime in the contract from absence
+  const includedOvertimeMinutes = Number.parseInt(user.secondaryEmployeeId ?? '0');
+  let overTimeDeduction = includedOvertimeMinutes * 60;
 
   const otherOvertime = Math.max(
     0,
     totalMinutes - scheduledMinutes - holidayMinutes - notHolidayNightMinutes,
   );
 
-  totalBillableTime += totalMinutes - holidayMinutes - notHolidayNightMinutes;
+  const totalTimeAdjusted = (totalMinutes - holidayMinutes - notHolidayNightMinutes) + holidayMinutesAdjusted + notHolidayNightMinutesAdjusted;
 
-  totalBillableTime = Math.max(totalBillableTime, scheduledMinutes);
+  let totalExtraHoliday = Math.max(0, Math.ceil(holidayMinutesAdjusted - overTimeDeduction));
+  const totalExtraHolidaySub = holidayMinutesAdjusted - totalExtraHoliday;
+  overTimeDeduction = Math.max(0, overTimeDeduction - holidayMinutesAdjusted);
+  totalExtraHoliday = totalExtraHoliday / 2
+
+  let totalExtraNight = Math.max(0, Math.ceil(notHolidayNightMinutesAdjusted - overTimeDeduction));
+  const totalExtraNightSub = notHolidayNightMinutesAdjusted - totalExtraNight;
+  overTimeDeduction = Math.max(0, overTimeDeduction - notHolidayNightMinutesAdjusted);
+  totalExtraNight = totalExtraNight / 1.5
+
+  const totalExtraOther = Math.max(0, Math.ceil(otherOvertime - overTimeDeduction));
+  const totalExtraOtherSub = otherOvertime - totalExtraOther;
+  overTimeDeduction = Math.max(0, overTimeDeduction - otherOvertime);
 
   let highestRow = 0;
 
@@ -91,11 +98,29 @@ export const createUserReport = (
   ws.cell(++highestRow, 1).string('Einträge:');
   ws.cell(highestRow, 2).number(timeEntries.length);
   ws.cell(++highestRow, 1).string('Pauschale ÜS:');
-  ws.cell(highestRow, 2).number(includedOvertime);
+  ws.cell(highestRow, 2).number(includedOvertimeMinutes);
+
+  ws.cell(++highestRow, 2)
+    .string('Raw')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+  ws.cell(highestRow, 4)
+    .string('Wertigkeit')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+  ws.cell(highestRow, 5)
+    .string('inkl. Wertigkeit')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 7)
+    .string('Pauschal abgegolten')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 9)
+    .string('Raw auszuzahlen')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
 
   ++highestRow;
+  ++highestRow;
+  ++highestRow;
   ws.cell(++highestRow, 1)
-    .string('Überstunden')
+    .string('Kategorie')
     .style({ border: { bottom: { style: 'medium', color: 'black' } } });
   ws.cell(highestRow, 2)
     .string('Stunden')
@@ -104,20 +129,57 @@ export const createUserReport = (
     .string('Minuten')
     .style({ border: { bottom: { style: 'medium', color: 'black' } } });
   ws.cell(highestRow, 4)
-    .string('Abgeltung')
+    .string('Wertigkeit')
     .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+  ws.cell(highestRow, 5)
+    .string('Stunden')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 6)
+    .string('Minuten')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 7)
+    .string('Stunden')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 8)
+    .string('Minuten')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 9)
+    .string('Stunden')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+    ws.cell(highestRow, 10)
+    .string('Minuten')
+    .style({ border: { bottom: { style: 'medium', color: 'black' } } });
+
   ws.cell(++highestRow, 1).string('Werktag Nachtzeit:');
   ws.cell(highestRow, 2).number(Math.floor(notHolidayNightMinutes / 60));
-  ws.cell(highestRow, 3).number(notHolidayNightMinutes % 60);
-  ws.cell(highestRow, 4).string('200%');
+  ws.cell(highestRow, 3).number(notHolidayNightMinutes % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 4).string('150%');
+  ws.cell(highestRow, 5).number(Math.floor(notHolidayNightMinutesAdjusted / 60));
+  ws.cell(highestRow, 6).number(notHolidayNightMinutesAdjusted % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 7).number(Math.floor(totalExtraNightSub / 60));
+  ws.cell(highestRow, 8).number(totalExtraNightSub % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 9).number(Math.floor(totalExtraNight / 60));
+  ws.cell(highestRow, 10).number(totalExtraNight % 60).style({font: {align: "left"}});
   ws.cell(++highestRow, 1).string('Sonn-/Feiertagszeit:');
   ws.cell(highestRow, 2).number(Math.floor(holidayMinutes / 60));
-  ws.cell(highestRow, 3).number(holidayMinutes % 60);
+  ws.cell(highestRow, 3).number(holidayMinutes % 60).style({font: {align: "left"}});
   ws.cell(highestRow, 4).string('200%');
+  ws.cell(highestRow, 5).number(Math.floor(holidayMinutesAdjusted / 60));
+  ws.cell(highestRow, 6).number(holidayMinutesAdjusted % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 7).number(Math.floor(totalExtraHolidaySub / 60));
+  ws.cell(highestRow, 8).number(totalExtraHolidaySub % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 9).number(Math.floor(totalExtraHoliday / 60));
+  ws.cell(highestRow, 10).number(totalExtraHoliday % 60).style({font: {align: "left"}});
   ws.cell(++highestRow, 1).string('Sonstige Überstunden:');
   ws.cell(highestRow, 2).number(Math.floor(otherOvertime / 60));
-  ws.cell(highestRow, 3).number(otherOvertime % 60);
-  ws.cell(highestRow, 4).string('150%');
+  ws.cell(highestRow, 3).number(otherOvertime % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 4).string('100%');
+  ws.cell(highestRow, 5).number(Math.floor(otherOvertime / 60));
+  ws.cell(highestRow, 6).number(otherOvertime % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 7).number(Math.floor(totalExtraOtherSub / 60));
+  ws.cell(highestRow, 8).number(totalExtraOtherSub % 60).style({font: {align: "left"}});
+  ws.cell(highestRow, 9).number(Math.floor(totalExtraOther / 60));
+  ws.cell(highestRow, 10).number(totalExtraOther % 60).style({font: {align: "left"}});
 
   ++highestRow;
   ws.cell(++highestRow, 1)
@@ -135,20 +197,9 @@ export const createUserReport = (
   ws.cell(++highestRow, 1).string('Gesamte Arbeitszeit:');
   ws.cell(highestRow, 2).number(Math.floor(totalMinutes / 60));
   ws.cell(highestRow, 3).number(totalMinutes % 60);
-
-  /*
-  highestRow++;
-  ws.cell(++highestRow, 1).string('Ausbezahlte Überstunden');
-  ws.cell(++highestRow, 1)
-    .string('(ÜS abzüglich Pauschale inkl. 50%/00% Zuschlag)')
-    .style({ border: { top: { style: 'medium', color: 'black' } } });
-  ws.cell(highestRow, 2)
-    .number(Math.floor(totalBillableTime / 60))
-    .style({ border: { top: { style: 'medium', color: 'black' } } });
-  ws.cell(highestRow, 3)
-    .number(totalBillableTime % 60)
-    .style({ border: { top: { style: 'medium', color: 'black' } } });
-  */
+  ws.cell(++highestRow, 1).string('Gesamte Arbeitszeit angepasst:');
+  ws.cell(highestRow, 2).number(Math.floor(totalTimeAdjusted / 60));
+  ws.cell(highestRow, 3).number(totalTimeAdjusted % 60);
 
   highestRow += 2;
 
